@@ -69,6 +69,9 @@ function UserTable() {
   const handleAdd = async () => {
     const newUser = {createdDate: dayjs(), lastActivityDate: dayjs()};
 
+    setChartDataCalculated(false);
+    setRollingRetention(null);
+
     await fetch("https://abtestapiak.herokuapp.com/api/users", {
       method: "POST",
       body: JSON.stringify(newUser),
@@ -92,7 +95,9 @@ function UserTable() {
       return getDatesDifference(dayjs(), item.createdDate) >= x;
     });
 
-    return `${(usersLoggedAfterX.length / usersRegisteredBeforeX.length * 100).toFixed(2)}%`;
+    const retention = (usersLoggedAfterX.length / usersRegisteredBeforeX.length * 100).toFixed(2)
+
+    return `${retention}%`;
   }
 
   const getDatesDifference = (date1, date2) => dayjs(date1).diff(date2)/(60*60*24*1000);
