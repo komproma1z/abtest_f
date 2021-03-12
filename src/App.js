@@ -1,6 +1,6 @@
 import './App.css';
 
-import UserTable from './components/UserTable';
+import Dashboard from './components/Dashboard';
 
 function App() {
 	return (
@@ -9,7 +9,7 @@ function App() {
 				Alexey K.
 			</header>
 			<main className="App-main">
-				<UserTable/>
+				<Dashboard/>
 			</main>
 		</div>
 	);

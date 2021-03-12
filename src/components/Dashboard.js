@@ -11,12 +11,12 @@ import {
   YAxis
 } from 'react-vis';
 
-import '../styles/UserTable.css';
+import '../styles/Dashboard.css';
 
 const customParseFormat = require('dayjs/plugin/customParseFormat');
 dayjs.extend(customParseFormat);
 
-function UserTable() {
+function Dashboard() {
 	const [error, setError] = useState(null);
 	const [isLoaded, setIsLoaded] = useState(false);
 	const [items, setItems] = useState([]);
@@ -196,4 +196,4 @@ function UserTable() {
 	}
 }
 
-export default UserTable;
+export default Dashboard;
