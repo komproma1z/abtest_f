@@ -41,8 +41,8 @@ function UserTable() {
     for (let itemId of modifiedItemsIds) {
 
       const item = items.find(item => item.id === itemId);
-      
-      fetch(`http://abtestapiak.herokuapp.com/api/users/${itemId}`, {
+
+      fetch(`https://abtestapiak.herokuapp.com/api/users/${itemId}`, {
         method: "PUT",
         body: JSON.stringify(item),
         headers: {
@@ -69,7 +69,7 @@ function UserTable() {
   const handleAdd = async () => {
     const newUser = {createdDate: dayjs(), lastActivityDate: dayjs()};
 
-    await fetch("http://abtestapiak.herokuapp.com/api/users", {
+    await fetch("https://abtestapiak.herokuapp.com/api/users", {
       method: "POST",
       body: JSON.stringify(newUser),
       headers: {
@@ -98,7 +98,7 @@ function UserTable() {
   const getDatesDifference = (date1, date2) => dayjs(date1).diff(date2)/(60*60*24*1000);
 
 	useEffect(() => {
-		fetch("http://abtestapiak.herokuapp.com/api/users")
+		fetch("https://abtestapiak.herokuapp.com/api/users")
 			.then(res => res.json())
 			.then(
 				(result) => {

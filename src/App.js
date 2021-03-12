@@ -6,7 +6,7 @@ function App() {
 	return (
 		<div className="App">
 			<header className="App-header">
-				Kekw
+				Alexey K.
 			</header>
 			<main className="App-main">
 				<UserTable/>
