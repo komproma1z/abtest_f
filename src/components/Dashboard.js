@@ -6,13 +6,15 @@ import {
   FlexibleWidthXYPlot, 
   VerticalGridLines,
   HorizontalGridLines,
-  VerticalBarSeries,
+  VerticalRectSeries,
   XAxis,
   YAxis
 } from 'react-vis';
+import InputMask from 'react-input-mask';
 
 import '../styles/Dashboard.css';
 
+const dateFormat = new RegExp("(0[1-9]|[1-3][0-9]).(1[0-2]|0[1-9]).([0-9]{4})");
 const customParseFormat = require('dayjs/plugin/customParseFormat');
 dayjs.extend(customParseFormat);
 
@@ -24,67 +26,95 @@ function Dashboard() {
   const [chartData, setChartData] = useState([]);
   const [chartDataCalculated, setChartDataCalculated] = useState(false);
   const [rollingRetention, setRollingRetention] = useState(null);
+  const [showErrMsg, setShowErrMsg] = useState(false);
 
   const chartRef = useRef(null);
-  const userRef = useRef(null);
+  // const userRef = useRef(null);
 
-  const handleOnChange = (e, field) => {
-    let index = items.findIndex(item => item.id === parseInt(e.target.name));
+  const handleOnChange = e => {
+
+    setShowErrMsg(false);
+    const id = parseInt(e.target.name.split(' ')[0]);
+    const field = e.target.name.split(' ')[1];
+    let index = items.findIndex(item => item.id === id);
     if (!modifiedItemsIds.includes(items[index].id)) {
       setModifiedItemsIds([...modifiedItemsIds, items[index].id]);
     }
-    items[index][field] = dayjs((dayjs(e.target.value, "DD.MM.YYYY").valueOf()+86400000)).format();
-    setItems(items);
+
+    if (!e.target.value.includes("_")) {
+      if (dateFormat.test(e.target.value)) {
+        items[index][field] = dayjs((dayjs(e.target.value, "DD.MM.YYYY").valueOf()+86400000)).format();
+        setItems(items);
+      }
+      else {
+        setShowErrMsg(true);
+      }
+    }
   }
 
   const handleSave = () => {
     for (let itemId of modifiedItemsIds) {
 
       const item = items.find(item => item.id === itemId);
-
       fetch(`https://abtestapiak.herokuapp.com/api/users/${itemId}`, {
-        method: "PUT",
-        body: JSON.stringify(item),
-        headers: {
-          "Content-Type": "application/json"
-        }
-      })
-      .catch(error => console.log(error));
+          method: "PUT",
+          body: JSON.stringify(item),
+          headers: {
+            "Content-Type": "application/json"
+          }
+        })
+        .catch(error => console.log(error));
     }
   }
 
   const handleCalculate = async () => {
-    const data = items.map(item => {
-      const obj = {};
-      obj.x = `id${item.id}`;
-      obj.y = getDatesDifference(item.lastActivityDate, item.createdDate);
-      return obj;
-    });
-    setChartData(data);
-    setRollingRetention(calculateRollingRetention(7));
-    await setChartDataCalculated(true);
-    return chartRef.current.scrollIntoView({behavior: 'smooth'});
+
+    if (!showErrMsg) {
+      const usersLifetimes = items.map(item => getDatesDifference(item.lastActivityDate, item.createdDate));
+
+      const occurences = {}
+
+      usersLifetimes.forEach(lifetime => {
+        if (occurences[`${lifetime}`] === undefined) {
+          occurences[`${lifetime}`] = 1
+        } else {
+          occurences[`${lifetime}`] += 1
+        }
+      });
+
+      const data = Object.keys(occurences).map(i => {
+        const obj = {};
+        obj.x = parseInt(i);
+        obj.y = occurences[i];
+        return obj;
+      });
+
+      setChartData(data);
+      setRollingRetention(calculateRollingRetention(7));
+      await setChartDataCalculated(true);
+      return chartRef.current.scrollIntoView({behavior: 'smooth'});
+    }
   }
 
-  const handleAdd = async () => {
-    const newUser = {createdDate: dayjs(), lastActivityDate: dayjs()};
+  // const handleAdd = async () => {
+  //   const newUser = {createdDate: dayjs(), lastActivityDate: dayjs()};
 
-    setChartDataCalculated(false);
-    setRollingRetention(null);
+  //   setChartDataCalculated(false);
+  //   setRollingRetention(null);
 
-    await fetch("https://abtestapiak.herokuapp.com/api/users", {
-      method: "POST",
-      body: JSON.stringify(newUser),
-      headers: {
-        "Content-Type": "application/json"
-      }
-    })
-    .then(res => res.json())
-    .then(result => setItems([...items, result.value]))
-    .catch(error => console.log(error));
+  //   await fetch("https://abtestapiak.herokuapp.com/api/users", {
+  //     method: "POST",
+  //     body: JSON.stringify(newUser),
+  //     headers: {
+  //       "Content-Type": "application/json"
+  //     }
+  //   })
+  //   .then(res => res.json())
+  //   .then(result => setItems([...items, result.value]))
+  //   .catch(error => console.log(error));
 
-    return userRef.current.scrollIntoView({behavior: 'smooth'});
-  }
+  //   return userRef.current.scrollIntoView({behavior: 'smooth'});
+  // }
 
   const calculateRollingRetention = x => {
     const usersLoggedAfterX = items.filter(item => {
@@ -100,7 +130,7 @@ function Dashboard() {
     return `${retention}%`;
   }
 
-  const getDatesDifference = (date1, date2) => dayjs(date1).diff(date2)/(60*60*24*1000);
+  const getDatesDifference = (date1, date2) => Math.floor(dayjs(date1).diff(date2)/(60*60*24*1000));
 
 	useEffect(() => {
 		fetch("https://abtestapiak.herokuapp.com/api/users")
@@ -124,6 +154,7 @@ function Dashboard() {
 	} else {
 		return (
       <div className="Wrapper">
+        {showErrMsg ? <h4 className="Error">Use proper date format</h4> : null}
         <table className="Table">
           <thead>
             <tr>
@@ -134,32 +165,33 @@ function Dashboard() {
           </thead>
           <tbody>
             {items.map(item => (
-              <tr key={item.id} ref={userRef}>
+              <tr key={item.id}>
                 <td>{item.id}</td>
                 <td>
-                  <input
-                    name={item.id}
+                  <InputMask
+                    name={`${item.id} createdDate`}
+                    onChange={handleOnChange}
+                    mask="99.99.9999"
                     defaultValue={dayjs(item.createdDate).format("DD.MM.YYYY")}
-                    maxLength="10"
-                    pattern="[0-9]{2}\.[0-9]{2}\.[0-9]{4}"
-                    onChange={e => handleOnChange(e, "createdDate")}
+                    placeholder="Enter date"
                   />
                 </td>
                 <td>
-                  <input
-                    name={item.id}
+                  <InputMask
+                    name={`${item.id} lastActivityDate`}
+                    onChange={handleOnChange}
+                    mask="99.99.9999"
                     defaultValue={dayjs(item.lastActivityDate).format("DD.MM.YYYY")}
-                    maxLength="10"
-                    pattern="[0-9]{2}\.[0-9]{2}\.[0-9]{4}"
-                    onChange={e => handleOnChange(e, "lastActivityDate")}
+                    placeholder="Enter date"
                   />
                 </td>
               </tr>
+              
             ))}
           </tbody>
         </table>
         <div className="Buttons">
-          <span onClick={handleAdd}>Add user</span>
+          {/* <span onClick={handleAdd}>Add user</span> */}
           <span onClick={handleSave}>Save</span>
           <span onClick={handleCalculate}>Calculate</span>
         </div>
@@ -167,7 +199,7 @@ function Dashboard() {
           {
           rollingRetention === null 
           ? null 
-          : `Rolling retention 7 days: ${rollingRetention}`
+          : `Rolling retention 7 day: ${rollingRetention}`
           }
         </p>
         {
@@ -181,9 +213,12 @@ function Dashboard() {
           >
             <VerticalGridLines />
             <HorizontalGridLines />
-            <XAxis />
-            <YAxis />
-            <VerticalBarSeries
+            <XAxis title="Lifetime (days)"/>
+            <YAxis 
+              title="Number of users"
+              tickFormat={val => Math.floor(val) === val ? val : ""}
+            />
+            <VerticalRectSeries
                 color="#5D6E97"
                 data={chartData}
               />
