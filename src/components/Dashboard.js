@@ -43,7 +43,8 @@ function Dashboard() {
 
     if (!e.target.value.includes("_")) {
       if (dateFormat.test(e.target.value)) {
-        items[index][field] = dayjs((dayjs(e.target.value, "DD.MM.YYYY").valueOf()+86400000)).format();
+        console.log(dayjs(e.target.value, "DD.MM.YYYY").format());
+        items[index][field] = dayjs(e.target.value, "DD.MM.YYYY").format();
         setItems(items);
       }
       else {
@@ -58,6 +59,8 @@ function Dashboard() {
     for (let itemId of modifiedItemsIds) {
 
       const item = items.find(item => item.id === itemId);
+      item.createdDate = dayjs(dayjs(item.createdDate).valueOf()+86400000).format()
+      item.lastActivityDate = dayjs(dayjs(item.lastActivityDate).valueOf()+86400000).format()
       fetch(`https://abtestapiak.herokuapp.com/api/users/${itemId}`, {
           method: "PUT",
           body: JSON.stringify(item),
