@@ -22,7 +22,7 @@ function Dashboard() {
 	const [error, setError] = useState(null);
 	const [isLoaded, setIsLoaded] = useState(false);
 	const [items, setItems] = useState([]);
-	const [modifiedItemsIds, setModifiedItemsIds] = useState([]);
+	const [modifiedItems, setModifiedItems] = useState([]);
   const [chartData, setChartData] = useState([]);
   const [chartDataCalculated, setChartDataCalculated] = useState(false);
   const [rollingRetention, setRollingRetention] = useState(null);
@@ -32,13 +32,23 @@ function Dashboard() {
   // const userRef = useRef(null);
 
   const handleOnChange = e => {
-
+    setChartDataCalculated(false);
     setShowErrMsg(false);
     const id = parseInt(e.target.name.split(' ')[0]);
     const field = e.target.name.split(' ')[1];
-    let index = items.findIndex(item => item.id === id);
-    if (!modifiedItemsIds.includes(items[index].id)) {
-      setModifiedItemsIds([...modifiedItemsIds, items[index].id]);
+    const index = items.findIndex(item => item.id === id);
+    
+    if (!modifiedItems.map(item => item.id).includes(items[index].id)) {
+      const modifiedItem = {};
+      modifiedItem["id"] = items[index].id;
+      modifiedItem["fields"] = [field];
+      setModifiedItems([...modifiedItems, modifiedItem]);
+    } else {
+      const item = modifiedItems.filter(item => item.id === id)[0];
+      const indexOfModified = modifiedItems.findIndex(item => item.id === id);
+      if (!modifiedItems[indexOfModified].fields.includes(field)) {
+        modifiedItems[indexOfModified].fields.push(field);
+      }
     }
 
     if (!e.target.value.includes("_")) {
@@ -55,11 +65,15 @@ function Dashboard() {
   }
 
   const handleSave = () => {
-    for (let itemId of modifiedItemsIds) {
-
+    for (let modifiedItem of modifiedItems) {
+      const itemId = modifiedItem.id
       const item = items.find(item => item.id === itemId);
-      item.createdDate = dayjs(dayjs(item.createdDate).valueOf()+86400000).format()
-      item.lastActivityDate = dayjs(dayjs(item.lastActivityDate).valueOf()+86400000).format()
+      if (modifiedItem.fields.includes("createdDate")) {
+        item.createdDate = dayjs(dayjs(item.createdDate).valueOf()+86400000).format()
+      }
+      if (modifiedItem.fields.includes("lastActivityDate")) {
+        item.lastActivityDate = dayjs(dayjs(item.lastActivityDate).valueOf()+86400000).format()
+      }
       fetch(`https://abtestapiak.herokuapp.com/api/users/${itemId}`, {
           method: "PUT",
           body: JSON.stringify(item),
