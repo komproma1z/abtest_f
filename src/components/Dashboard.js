@@ -6,7 +6,7 @@ import {
   FlexibleWidthXYPlot, 
   VerticalGridLines,
   HorizontalGridLines,
-  VerticalRectSeries,
+  VerticalBarSeries,
   XAxis,
   YAxis
 } from 'react-vis';
@@ -47,6 +47,8 @@ function Dashboard() {
         setItems(items);
       }
       else {
+        setRollingRetention(null);
+        setChartDataCalculated(false);
         setShowErrMsg(true);
       }
     }
@@ -213,16 +215,16 @@ function Dashboard() {
           >
             <VerticalGridLines />
             <HorizontalGridLines />
-            <XAxis title="Lifetime (days)"/>
+            <XAxis/>
             <YAxis 
               title="Number of users"
               tickFormat={val => Math.floor(val) === val ? val : ""}
             />
-            <VerticalRectSeries
+            <VerticalBarSeries
                 color="#5D6E97"
                 data={chartData}
               />
-            </FlexibleWidthXYPlot>
+          </FlexibleWidthXYPlot>
           </div>
           : null
         }
