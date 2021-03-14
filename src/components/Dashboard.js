@@ -32,6 +32,7 @@ function Dashboard() {
   // const userRef = useRef(null);
 
   const handleOnChange = e => {
+    setRollingRetention(null);
     setChartDataCalculated(false);
     setShowErrMsg(false);
     const id = parseInt(e.target.name.split(' ')[0]);
@@ -43,8 +44,7 @@ function Dashboard() {
       modifiedItem["id"] = items[index].id;
       modifiedItem["fields"] = [field];
       setModifiedItems([...modifiedItems, modifiedItem]);
-    } else {
-      const item = modifiedItems.filter(item => item.id === id)[0];
+    } else {      
       const indexOfModified = modifiedItems.findIndex(item => item.id === id);
       if (!modifiedItems[indexOfModified].fields.includes(field)) {
         modifiedItems[indexOfModified].fields.push(field);
