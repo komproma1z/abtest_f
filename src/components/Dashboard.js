@@ -12,6 +12,9 @@ import {
 } from 'react-vis';
 import InputMask from 'react-input-mask';
 
+import { getDatesDifference , calculateRollingRetention } from '../utilities/calculations.js';
+import { addLastValueField } from '../utilities/miscellaneous.js';
+import { areAllFieldsValid } from '../utilities/validations.js';
 import '../styles/Dashboard.css';
 
 const dateFormat = new RegExp("(0[1-9]|[1-3][0-9]).(1[0-2]|0[1-9]).([0-9]{4})");
@@ -26,18 +29,27 @@ function Dashboard() {
   const [chartData, setChartData] = useState([]);
   const [chartDataCalculated, setChartDataCalculated] = useState(false);
   const [rollingRetention, setRollingRetention] = useState(null);
-  const [showErrMsg, setShowErrMsg] = useState(false);
+  const [showFormatErr, setShowFormatErr] = useState(false);
+  const [showNegativeDiffErr, setShowNegativeDiffErr] = useState(false);
+  const [lastValueFieldAdded, setLastValueFieldAdded] = useState(false);
 
   const chartRef = useRef(null);
   // const userRef = useRef(null);
 
   const handleOnChange = e => {
+    if (!lastValueFieldAdded) {
+      addLastValueField(items);
+      setLastValueFieldAdded(true);
+    }
     setRollingRetention(null);
     setChartDataCalculated(false);
-    setShowErrMsg(false);
+    setShowFormatErr(false);
+    setShowNegativeDiffErr(false);
     const id = parseInt(e.target.name.split(' ')[0]);
     const field = e.target.name.split(' ')[1];
     const index = items.findIndex(item => item.id === id);
+
+    items[index].lastValue = e.target.value;
     
     if (!modifiedItems.map(item => item.id).includes(items[index].id)) {
       const modifiedItem = {};
@@ -55,62 +67,89 @@ function Dashboard() {
       if (dateFormat.test(e.target.value)) {
         items[index][field] = dayjs(e.target.value, "DD.MM.YYYY").format();
         setItems(items);
+        if (getDatesDifference(items[index].lastActivityDate, items[index].createdDate) < 0) {
+          setShowNegativeDiffErr(true);
+        }
       }
       else {
-        setRollingRetention(null);
-        setChartDataCalculated(false);
-        setShowErrMsg(true);
+        setShowFormatErr(true);
       }
     }
   }
 
   const handleSave = () => {
-    for (let modifiedItem of modifiedItems) {
-      const itemId = modifiedItem.id
-      const item = items.find(item => item.id === itemId);
-      if (modifiedItem.fields.includes("createdDate")) {
-        item.createdDate = dayjs(dayjs(item.createdDate).valueOf()+86400000).format()
-      }
-      if (modifiedItem.fields.includes("lastActivityDate")) {
-        item.lastActivityDate = dayjs(dayjs(item.lastActivityDate).valueOf()+86400000).format()
-      }
-      fetch(`https://abtestapiak.herokuapp.com/api/users/${itemId}`, {
-          method: "PUT",
-          body: JSON.stringify(item),
-          headers: {
-            "Content-Type": "application/json"
+
+    if (!areAllFieldsValid(items)) {
+      setShowFormatErr(true);
+      return;
+    } else {
+      if (!showFormatErr && !showNegativeDiffErr) {
+        for (let modifiedItem of modifiedItems) {
+          const itemId = modifiedItem.id
+          const item = items.find(item => item.id === itemId);
+  
+          if (getDatesDifference(item.lastActivityDate, item.createdDate) < 0) {
+            setShowNegativeDiffErr(true);
+            return;
           }
-        })
-        .catch(error => console.log(error));
+  
+          if (modifiedItem.fields.includes("createdDate")) {
+            item.createdDate = dayjs(dayjs(item.createdDate).valueOf()+86400000).format()
+          }
+          if (modifiedItem.fields.includes("lastActivityDate")) {
+            item.lastActivityDate = dayjs(dayjs(item.lastActivityDate).valueOf()+86400000).format()
+          }
+          fetch(`https://abtestapiak.herokuapp.com/api/users/${itemId}`, {
+              method: "PUT",
+              body: JSON.stringify(item),
+              headers: {
+                "Content-Type": "application/json"
+              }
+            })
+            .catch(error => console.log(error));
+        }
+      }  
     }
   }
 
   const handleCalculate = async () => {
 
-    if (!showErrMsg) {
-      const usersLifetimes = items.map(item => getDatesDifference(item.lastActivityDate, item.createdDate));
-
-      const occurences = {}
-
-      usersLifetimes.forEach(lifetime => {
-        if (occurences[`${lifetime}`] === undefined) {
-          occurences[`${lifetime}`] = 1
-        } else {
-          occurences[`${lifetime}`] += 1
+    if (!areAllFieldsValid(items)) {
+      setShowFormatErr(true);
+      return;
+    } else {
+      if (!showFormatErr && !showNegativeDiffErr) {
+        const usersLifetimes = items.map(item => getDatesDifference(item.lastActivityDate, item.createdDate));
+  
+        setShowNegativeDiffErr(false);
+  
+        if (usersLifetimes.some(v => v < 0)) {
+          setShowNegativeDiffErr(true);
+          return;
         }
-      });
-
-      const data = Object.keys(occurences).map(i => {
-        const obj = {};
-        obj.x = parseInt(i);
-        obj.y = occurences[i];
-        return obj;
-      });
-
-      setChartData(data);
-      setRollingRetention(calculateRollingRetention(7));
-      await setChartDataCalculated(true);
-      return chartRef.current.scrollIntoView({behavior: 'smooth'});
+  
+        const occurences = {}
+  
+        usersLifetimes.forEach(lifetime => {
+          if (occurences[`${lifetime}`] === undefined) {
+            occurences[`${lifetime}`] = 1
+          } else {
+            occurences[`${lifetime}`] += 1
+          }
+        });
+  
+        const data = Object.keys(occurences).map(i => {
+          const obj = {};
+          obj.x = parseInt(i);
+          obj.y = occurences[i];
+          return obj;
+        });
+  
+        setChartData(data);
+        setRollingRetention(calculateRollingRetention(7, items));
+        await setChartDataCalculated(true);
+        return chartRef.current.scrollIntoView({behavior: 'smooth'});
+      }
     }
   }
 
@@ -134,21 +173,7 @@ function Dashboard() {
   //   return userRef.current.scrollIntoView({behavior: 'smooth'});
   // }
 
-  const calculateRollingRetention = x => {
-    const usersLoggedAfterX = items.filter(item => {
-      return getDatesDifference(item.lastActivityDate, item.createdDate) >= x;
-    });
 
-    const usersRegisteredBeforeX = items.filter(item => {
-      return getDatesDifference(dayjs(), item.createdDate) >= x;
-    });
-
-    const retention = (usersLoggedAfterX.length / usersRegisteredBeforeX.length * 100).toFixed(2)
-
-    return `${retention}%`;
-  }
-
-  const getDatesDifference = (date1, date2) => Math.floor(dayjs(date1).diff(date2)/(60*60*24*1000));
 
 	useEffect(() => {
 		fetch("https://abtestapiak.herokuapp.com/api/users")
@@ -162,7 +187,7 @@ function Dashboard() {
 					setIsLoaded(true);
 					setError(error);
 				}
-			)
+			);
 	}, []);
 
 	if (error) {
@@ -172,7 +197,8 @@ function Dashboard() {
 	} else {
 		return (
       <div className="Wrapper">
-        {showErrMsg ? <h4 className="Error">Use proper date format</h4> : null}
+        {showFormatErr ? <h4 className="Error">Use proper date format</h4> : null}
+        {showNegativeDiffErr ? <h4 className="Error">Last activity date can't be earlier than registration date</h4> : null}
         <table className="Table">
           <thead>
             <tr>
