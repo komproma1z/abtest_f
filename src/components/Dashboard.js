@@ -43,7 +43,6 @@ function Dashboard() {
 
     if (!e.target.value.includes("_")) {
       if (dateFormat.test(e.target.value)) {
-        console.log(dayjs(e.target.value, "DD.MM.YYYY").format());
         items[index][field] = dayjs(e.target.value, "DD.MM.YYYY").format();
         setItems(items);
       }
