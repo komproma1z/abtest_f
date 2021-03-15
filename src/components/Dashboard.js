@@ -119,9 +119,12 @@ function Dashboard() {
       return;
     } else {
       if (!showFormatErr && !showNegativeDiffErr) {
-        const usersLifetimes = items.map(item => getDatesDifference(item.lastActivityDate, item.createdDate));
-  
+
         setShowNegativeDiffErr(false);
+
+        const usersLifetimes = items.map(item => {
+          return getDatesDifference(item.lastActivityDate, item.createdDate);
+        });
   
         if (usersLifetimes.some(v => v < 0)) {
           setShowNegativeDiffErr(true);
@@ -130,7 +133,7 @@ function Dashboard() {
   
         const occurences = {}
   
-        usersLifetimes.forEach(lifetime => {
+        usersLifetimes.sort((a, b) => a - b).forEach(lifetime => {
           if (occurences[`${lifetime}`] === undefined) {
             occurences[`${lifetime}`] = 1
           } else {
